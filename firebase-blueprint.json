@@ -1,0 +1,29 @@
+{
+  "entities": {
+    "booking": {
+      "title": "Booking",
+      "description": "A specialized service booking reservation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceTitle": { "type": "string" },
+        "bookingDate": { "type": "string" },
+        "bookingTime": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "customerName", "customerPhone", "serviceId", "serviceTitle", "bookingDate", "bookingTime", "status", "date"]
+    }
+  },
+  "firestore": {
+    "/bookings/{bookingId}": {
+      "schema": "booking",
+      "description": "Collection of service bookings"
+    }
+  }
+}

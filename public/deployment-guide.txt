@@ -1,0 +1,23 @@
+Deployment Guide (Mobile Friendly)
+
+Preparation First:
+Export to GitHub: Open the Settings menu here in AI Studio and choose Export to GitHub. This creates a clean repository for your project automatically.
+
+Option 1: Deploying on Railway (Recommended for Ease)
+Navigate to Railway.app and sign in with GitHub.
+Click New Project -> Deploy from GitHub repo.
+Select the repository you just exported from AI Studio.
+Railway will automatically detect the Node.js environment. By default, it will figure out the start commands, but to be completely safe, you can tap on your deployment, go to Settings, and ensure:
+Build Command: npm install && npm run build
+Start Command: npm run start
+Railway automatically handles the port assignment seamlessly.
+
+Option 2: Deploying on Render
+Navigate to Render.com and sign in.
+Tap New -> Web Service -> Build and deploy from a Git repository.
+Connect and select your GitHub repository.
+During the setup form, provide the following details:
+Environment: Node
+Build Command: npm install && npm run build
+Start Command: npm run start
+Tap Create Web Service. Render will automatically begin building your app and provide you with a live URL within minutes.
