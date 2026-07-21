@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Info, ShieldCheck, CreditCard, Send, QrCode, Languages } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import PaymentQRCode from './PaymentQRCode';
 import { ProductService, Transaction } from '../types';
 import { formatETB } from '../utils';
 import { PAYMENT_CONFIG } from '../config';
@@ -19,6 +20,8 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ product, onClose, onSubmitTransaction }: PaymentModalProps) {
+  if (!product || !product.title) return null;
+  
   const [gateway, setGateway] = useState<'telebirr' | 'CBE Birr'>('telebirr');
   const [lang, setLang] = useState<'en' | 'om'>('en');
   const [customerName, setCustomerName] = useState('');
@@ -190,15 +193,13 @@ export default function PaymentModal({ product, onClose, onSubmitTransaction }: 
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 items-start">
-                <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 shrink-0 mx-auto sm:mx-0">
-                  <QRCodeSVG 
-                    value={gateway === 'telebirr' ? `telebirr://pay?merchant=${config.accountNumber}&amount=${product.price}` : `cbebirr://pay?account=${config.accountNumber}&amount=${product.price}`}
-                    size={100}
-                    level="M"
-                    includeMargin={false}
-                    className="rounded-lg"
+                <div className="shrink-0 mx-auto sm:mx-0">
+                  <PaymentQRCode 
+                    gateway={gateway}
+                    accountNumber={config.accountNumber}
+                    amount={product.price}
+                    size={110}
                   />
-                  <p className="text-center font-mono text-[10px] text-slate-400 mt-1.5 font-bold">SCAN ME</p>
                 </div>
                 
                 <div className="flex-1 w-full">

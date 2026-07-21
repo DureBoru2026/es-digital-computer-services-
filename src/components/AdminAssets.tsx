@@ -224,7 +224,7 @@ export default function AdminAssets({ assets, onAddAsset, onDeleteAsset }: Admin
                   </td>
                 </tr>
               ) : (
-                assets.map((asset) => (
+                assets.filter(asset => asset && asset.title).map((asset) => (
                   <tr key={asset.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

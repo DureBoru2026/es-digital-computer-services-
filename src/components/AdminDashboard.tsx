@@ -264,7 +264,7 @@ export default function AdminDashboard({ bookings, transactions, feedback, onSet
             </div>
             <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
               <div className="divide-y divide-slate-50">
-                {recentActivity.map((item) => (
+                {recentActivity.filter(item => item && item.title).map((item) => (
                   <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors flex gap-4">
                     <div className={`p-2.5 rounded-xl h-fit \u0024{
                       item.type === 'transaction' ? 'bg-emerald-50 text-emerald-600' : 

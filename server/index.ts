@@ -15,6 +15,26 @@ function authenticateAdmin(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+async function logAction(action: string, details: string, severity: 'info' | 'warning' | 'critical' = 'info', req?: Request) {
+  try {
+    const logs = await db.getLogs();
+    const newLog = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      adminUser: 'Admin (Jemal)', 
+      action,
+      details,
+      timestamp: new Date().toISOString(),
+      severity,
+      ip: req?.ip || 'Internal'
+    };
+    logs.unshift(newLog);
+    const trimmed = logs.slice(0, 500);
+    await db.saveLogs(trimmed);
+  } catch (err) {
+    console.error('Failed to save security log:', err);
+  }
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
@@ -95,6 +115,7 @@ async function startServer() {
     
     products.push(product);
     await db.saveProducts(products);
+    await logAction('Product Created', `Added new product: ${product.title}`, 'info', req);
     res.status(201).json(product);
   });
 
@@ -117,6 +138,7 @@ async function startServer() {
     };
     
     await db.saveProducts(products);
+    await logAction('Product Updated', `Updated product: ${products[index].title} (ID: ${id})`, 'info', req);
     res.json(products[index]);
   });
 
@@ -132,6 +154,7 @@ async function startServer() {
     }
     
     await db.saveProducts(filtered);
+    await logAction('Product Deleted', `Removed product ID: ${id}`, 'warning', req);
     res.json({ success: true, message: 'Product deleted successfully' });
   });
 
@@ -180,11 +203,6 @@ async function startServer() {
   });
 
   // --- FEEDBACK & CONTACTS ---
-
-  // Get all feedback forms (Admin Only)
-  app.get('/api/feedback', authenticateAdmin, async (req: Request, res: Response) => {
-    res.json(await db.getFeedback());
-  });
 
   // Get positive feedback testimonials (Public)
   app.get('/api/testimonials', async (req: Request, res: Response) => {
@@ -289,6 +307,15 @@ async function startServer() {
     }
   });
 
+  // Get all feedback (Admin Only)
+  app.get('/api/feedback', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      res.json(await db.getFeedback());
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to retrieve feedback.' });
+    }
+  });
+
   // Submit contact feedback (Public)
   app.post('/api/feedback', async (req: Request, res: Response) => {
     const { name, email, phone, message, rating } = req.body;
@@ -354,7 +381,12 @@ async function startServer() {
 
   // Get all transaction logs (Admin Only)
   app.get('/api/transactions', authenticateAdmin, async (req: Request, res: Response) => {
-    res.json(await db.getTransactions());
+    try {
+      res.json(await db.getTransactions());
+    } catch (err) {
+      console.error('Error getting transactions:', err);
+      res.status(500).json({ error: 'Failed to retrieve transactions' });
+    }
   });
 
   // Submit transaction reference number (Public / Customer Checkout)
@@ -407,6 +439,7 @@ async function startServer() {
     if (notes !== undefined) transactions[index].notes = notes;
     
     await db.saveTransactions(transactions);
+    await logAction('Payment Status Changed', `Updated TX ${id} to ${status}. Notes: ${notes || 'None'}`, status === 'approved' ? 'info' : 'warning', req);
     res.json(transactions[index]);
   });
 
@@ -547,43 +580,117 @@ async function startServer() {
 
   // Get list of registered customers (Derived from Transactions + Feedback, Admin Only)
   app.get('/api/users', authenticateAdmin, async (req: Request, res: Response) => {
-    const transactions = await db.getTransactions();
-    const feedback = await db.getFeedback();
-    
-    const customersMap = new Map<string, { name: string; contact: string; source: string; transactionsCount: number; spentAmount: number }>();
-    
-    transactions.forEach(t => {
-      const key = `${t.customerName.toLowerCase()}_${t.customerPhone || ''}`;
-      if (!customersMap.has(key)) {
-        customersMap.set(key, {
-          name: t.customerName,
-          contact: t.customerPhone || 'N/A',
-          source: 'Purchase',
-          transactionsCount: 0,
-          spentAmount: 0
-        });
-      }
-      const record = customersMap.get(key)!;
-      record.transactionsCount += 1;
-      if (t.status === 'approved') {
-        record.spentAmount += t.amount;
-      }
-    });
-    
-    feedback.forEach(f => {
-      const key = `${f.name.toLowerCase()}_${f.phone || ''}`;
-      if (!customersMap.has(key)) {
-        customersMap.set(key, {
-          name: f.name,
-          contact: f.phone || f.email,
-          source: 'Contact Inquiry',
-          transactionsCount: 0,
-          spentAmount: 0
-        });
-      }
-    });
-    
-    res.json(Array.from(customersMap.values()));
+    try {
+      const transactions = await db.getTransactions();
+      const feedback = await db.getFeedback();
+      
+      const customersMap = new Map<string, { name: string; contact: string; source: string; transactionsCount: number; spentAmount: number }>();
+      
+      transactions.forEach(t => {
+        const key = `${t.customerName.toLowerCase()}_${t.customerPhone || ''}`;
+        if (!customersMap.has(key)) {
+          customersMap.set(key, {
+            name: t.customerName,
+            contact: t.customerPhone || 'N/A',
+            source: 'Purchase',
+            transactionsCount: 0,
+            spentAmount: 0
+          });
+        }
+        const record = customersMap.get(key)!;
+        record.transactionsCount += 1;
+        if (t.status === 'approved') {
+          record.spentAmount += t.amount;
+        }
+      });
+      
+      feedback.forEach(f => {
+        const key = `${f.name.toLowerCase()}_${f.phone || ''}`;
+        if (!customersMap.has(key)) {
+          customersMap.set(key, {
+            name: f.name,
+            contact: f.phone || f.email,
+            source: 'Contact Inquiry',
+            transactionsCount: 0,
+            spentAmount: 0
+          });
+        }
+      });
+      
+      res.json(Array.from(customersMap.values()));
+    } catch (err) {
+      console.error('Error getting users:', err);
+      res.status(500).json({ error: 'Failed to retrieve users' });
+    }
+  });
+
+  app.post('/api/admin/broadcast', authenticateAdmin, async (req: Request, res: Response) => {
+    const { subject, message } = req.body;
+    try {
+      const transactions = await db.getTransactions();
+      const feedback = await db.getFeedback();
+      
+      const emails = new Set<string>();
+      
+      // Collect emails from transactions (if any)
+      transactions.forEach(t => {
+        // Transactions don't have email in this schema, but we can check if they are in feedback
+      });
+
+      // Collect emails from feedback
+      feedback.forEach(f => {
+        if (f.email) emails.add(f.email.toLowerCase());
+      });
+
+      console.log(`[BROADCAST] Subject: ${subject}`);
+      console.log(`[BROADCAST] Content: ${message}`);
+      console.log(`[BROADCAST] Recipients (${emails.size}): ${Array.from(emails).join(', ')}`);
+
+      // Simulate delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Save to history
+      const broadcasts = await db.getBroadcasts();
+      broadcasts.unshift({
+        id: `bc_${Date.now()}`,
+        subject,
+        message,
+        timestamp: new Date().toISOString(),
+        recipientCount: emails.size
+      });
+      await db.saveBroadcasts(broadcasts.slice(0, 100));
+
+      res.json({ success: true, count: emails.size });
+      await logAction('Broadcast Sent', `Subject: ${subject}. Recipients: ${emails.size}`, 'info', req);
+    } catch (err) {
+      res.status(500).json({ error: 'Broadcast failed' });
+    }
+  });
+
+  app.get('/api/admin/broadcasts', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      const broadcasts = await db.getBroadcasts();
+      res.json(broadcasts);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch broadcast history' });
+    }
+  });
+
+  // Consolidated Admin Data Fetch
+  app.get('/api/admin/all-data', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      console.log('[ADMIN] Fetching all datasets for dashboard...');
+      const [feedback, transactions, users, bookings] = await Promise.all([
+        db.getFeedback(),
+        db.getTransactions(),
+        db.getUsers(),
+        db.getBookings()
+      ]);
+      res.json({ feedback, transactions, users, bookings });
+    } catch (err: any) {
+      console.error('All-data fetch error:', err);
+      res.status(500).json({ error: 'Failed to fetch administrative data', details: err.message });
+    }
   });
 
   // Assets Management (Public/Admin)
@@ -607,6 +714,7 @@ async function startServer() {
       };
       assets.push(newAsset);
       await db.saveAssets(assets);
+      await logAction('Asset Created', `Added new digital asset: ${newAsset.title}`, 'info', req);
       res.status(201).json(newAsset);
     } catch (err) {
       res.status(500).json({ error: 'Failed to create asset' });
@@ -619,6 +727,7 @@ async function startServer() {
       const assets = await db.getAssets();
       const filtered = assets.filter(a => a.id !== id);
       await db.saveAssets(filtered);
+      await logAction('Asset Deleted', `Deleted digital asset ID: ${id}`, 'warning', req);
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: 'Failed to delete asset' });
@@ -643,6 +752,42 @@ async function startServer() {
     }
   });
 
+  // Security Logs (Admin Only)
+  app.get('/api/admin/logs', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      const logs = await db.getLogs();
+      res.json(logs);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+  });
+
+  // Public Service Tracker
+  app.get('/api/track/:query', async (req: Request, res: Response) => {
+    const { query } = req.params;
+    try {
+      const bookings = await db.getBookings();
+      const match = bookings.find(b => 
+        b.id.toLowerCase() === query.toLowerCase() || 
+        b.customerPhone.replace(/\D/g, '') === query.replace(/\D/g, '')
+      );
+      
+      if (match) {
+        res.json({
+          id: match.id,
+          status: match.status,
+          serviceTitle: match.serviceTitle,
+          bookingDate: match.bookingDate,
+          paymentStatus: match.paymentStatus
+        });
+      } else {
+        res.status(404).json({ error: 'No service found for this ID or Phone Number' });
+      }
+    } catch (err) {
+      res.status(500).json({ error: 'Tracking service error' });
+    }
+  });
+
   // -------------------------------------------------------------
   // VITE DEV SERVER OR STATIC SERVING MIDDLEWARE
   // -------------------------------------------------------------
@@ -662,6 +807,12 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on http://0.0.0.0:${PORT} (Express + Vite)`);
+  });
+
+  // Global Error Handler
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    console.error('Unhandled Server Error:', err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
   });
 }
 

@@ -11,6 +11,8 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onSelect }: ProductCardProps) {
+  if (!product) return null;
+  
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case 'maintenance': return 'Maintenance';

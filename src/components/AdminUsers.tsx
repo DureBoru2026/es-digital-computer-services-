@@ -11,11 +11,15 @@ interface AdminUsersProps {
 export default function AdminUsers({ customers, onRefresh }: AdminUsersProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.source.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCustomers = customers.filter(c => {
+    if (!c) return false;
+    const name = c.name || '';
+    const contact = c.contact || '';
+    const source = c.source || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           source.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   // Stats calculation
   const totalLeads = customers.length;

@@ -326,7 +326,7 @@ export default function AdminProducts({ products, onAddProduct, onUpdateProduct,
                     </td>
                   </tr>
                 ) : (
-                  products.map((p) => (
+                  products.filter(p => p && p.title).map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="p-4 pl-6 flex items-center space-x-3">
                         <img 

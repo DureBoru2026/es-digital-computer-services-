@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Laptop, Phone, Mail, MapPin, ArrowRight, ShieldCheck, 
   MessageSquare, BookOpen, AlertCircle, Sparkles, CheckCircle2,
@@ -28,6 +28,10 @@ import AdminHistory from './components/AdminHistory';
 import AdminReport from './components/AdminReport';
 import AdminDashboard from './components/AdminDashboard';
 import AdminAssets from './components/AdminAssets';
+import AdminSecurityLogs from './components/AdminSecurityLogs';
+import ServiceTracker from './components/ServiceTracker';
+import FloatingContact from './components/FloatingContact';
+import UpdateNotifier from './components/UpdateNotifier';
 import DigitalStore from './components/DigitalStore';
 import RecentlyViewed from './components/RecentlyViewed';
 import MobileAirtimePurchase from './components/MobileAirtimePurchase';
@@ -46,6 +50,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>('dashboard');
   
+  // Auth State
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    token: null,
+    user: null,
+  });
+
   // Data States
   const [products, setProducts] = useState<ProductService[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -54,6 +65,33 @@ export default function App() {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [assets, setAssets] = useState<DigitalAsset[]>([]);
+
+  // Sound Notification Ref
+  const prevCountsRef = useRef({ bookings: 0, feedback: 0, transactions: 0 });
+  const isFirstLoadRef = useRef(true);
+
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log('Audio play blocked:', e));
+    } catch (err) {
+      console.error('Audio error:', err);
+    }
+  };
+
+  // Admin Data Polling
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (authState.isAuthenticated && authState.token) {
+      interval = setInterval(() => {
+        loadAdminData(authState.token!);
+      }, 30000); // Poll every 30 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [authState.isAuthenticated, authState.token]);
 
   // DIGITAL ASSETS
   const loadAssets = async () => {
@@ -132,13 +170,6 @@ export default function App() {
     };
     setSelectedProduct(virtualProduct);
   };
-
-  // Auth State
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    token: null,
-    user: null,
-  });
 
   // UI Flow States
   const [selectedProduct, setSelectedProduct] = useState<ProductService | null>(null);
@@ -252,21 +283,80 @@ export default function App() {
   const loadAdminData = async (token: string) => {
     const headers = { 'Authorization': `Bearer ${token}` };
     try {
-      const feedRes = await fetch('/api/feedback', { headers });
-      const feedData = await feedRes.json();
-      setFeedback(feedData);
+      const response = await fetch('/api/admin/all-data', { headers });
+      if (response.ok) {
+        const data = await response.json();
+        
+        const finalFeedback = Array.isArray(data.feedback) ? data.feedback : [];
+        const finalTransactions = Array.isArray(data.transactions) ? data.transactions : [];
+        const finalBookings = Array.isArray(data.bookings) ? data.bookings : [];
 
-      const txRes = await fetch('/api/transactions', { headers });
-      const txData = await txRes.json();
-      setTransactions(txData);
+        setFeedback(finalFeedback);
+        setTransactions(finalTransactions);
+        setBookings(finalBookings);
 
-      const usrRes = await fetch('/api/users', { headers });
-      const usrData = await usrRes.json();
-      setCustomers(usrData);
+        // Correctly derive customers from transactions and feedback
+        const customersMap = new Map<string, any>();
+        
+        finalTransactions.forEach(t => {
+          if (!t) return;
+          const key = `${(t.customerName || 'unknown').toLowerCase()}_${t.customerPhone || ''}`;
+          if (!customersMap.has(key)) {
+            customersMap.set(key, {
+              name: t.customerName || 'Unknown Customer',
+              contact: t.customerPhone || 'N/A',
+              source: 'Purchase',
+              transactionsCount: 0,
+              spentAmount: 0
+            });
+          }
+          const record = customersMap.get(key);
+          record.transactionsCount += 1;
+          if (t.status === 'approved') {
+            record.spentAmount += (t.amount || 0);
+          }
+        });
+        
+        finalFeedback.forEach(f => {
+          if (!f) return;
+          const key = `${(f.name || 'anonymous').toLowerCase()}_${f.phone || ''}`;
+          if (!customersMap.has(key)) {
+            customersMap.set(key, {
+              name: f.name || 'Anonymous',
+              contact: f.phone || f.email || 'N/A',
+              source: 'Contact Inquiry',
+              transactionsCount: 0,
+              spentAmount: 0
+            });
+          }
+        });
+        
+        setCustomers(Array.from(customersMap.values()));
 
-      const bookRes = await fetch('/api/bookings', { headers });
-      const bookData = await bookRes.json();
-      setBookings(Array.isArray(bookData) ? bookData : []);
+        // Sound notification logic
+        if (!isFirstLoadRef.current) {
+          const hasNewBooking = finalBookings.length > prevCountsRef.current.bookings;
+          const hasNewFeedback = finalFeedback.length > prevCountsRef.current.feedback;
+          const hasNewTx = finalTransactions.length > prevCountsRef.current.transactions;
+
+          if (hasNewBooking || hasNewFeedback || hasNewTx) {
+            playNotificationSound();
+          }
+        }
+
+        // Update refs
+        prevCountsRef.current = {
+          bookings: finalBookings.length,
+          feedback: finalFeedback.length,
+          transactions: finalTransactions.length
+        };
+        isFirstLoadRef.current = false;
+      } else if (response.status === 401) {
+        console.warn('Admin session expired or invalid');
+        setAuthState({ isAuthenticated: false, token: null, user: null });
+        localStorage.removeItem('es_digital_admin_token');
+        localStorage.removeItem('es_digital_admin_user');
+      }
     } catch (err) {
       console.error('Error fetching administrative datasets:', err);
     }
@@ -720,17 +810,49 @@ export default function App() {
     }
   };
 
+  const handleSendBroadcast = async (subject: string, message: string) => {
+    try {
+      const res = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify({ subject, message })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return { success: false, count: 0 };
+    } catch (err) {
+      return { success: false, count: 0 };
+    }
+  };
+
+  const handleGetBroadcasts = async () => {
+    try {
+      const res = await fetch('/api/admin/broadcasts', {
+        headers: { 'Authorization': `Bearer ${authState.token}` }
+      });
+      if (res.ok) return await res.json();
+      return [];
+    } catch (err) {
+      return [];
+    }
+  };
+
   // -------------------------------------------------------------
   // VIEW RENDERERS (State switcher)
   // -------------------------------------------------------------
 
   const filteredProducts = products.filter(p => {
+    if (!p || !p.title) return false;
     const matchesSearch = !searchQuery.trim() || p.title.toLowerCase().includes(searchQuery.toLowerCase()) || p.category.toLowerCase().includes(searchQuery.toLowerCase()) || p.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   }).sort((a, b) => {
-    if (sortOrder === 'asc') return a.price - b.price;
-    if (sortOrder === 'desc') return b.price - a.price;
+    if (sortOrder === 'asc') return (a.price || 0) - (b.price || 0);
+    if (sortOrder === 'desc') return (b.price || 0) - (a.price || 0);
     return 0;
   });
 
@@ -742,6 +864,11 @@ export default function App() {
         return (
           <div id="home-view" className="space-y-16 animate-in fade-in duration-300">
             
+            {/* Service Tracking Hub */}
+            <div className="pt-4">
+              <ServiceTracker />
+            </div>
+
             {/* Hero Banner Panel */}
             <section id="hero-banner" className="relative bg-gradient-to-br from-white to-sky-50 text-slate-900 rounded-3xl overflow-hidden shadow-xl shadow-sky-100/80 py-16 px-6 sm:px-12 md:px-16 border border-slate-200">
               <div className="absolute -top-32 -left-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl" />
@@ -860,7 +987,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {products.slice(0, 3).map((prod) => (
+                {products.filter(p => p && p.title).slice(0, 3).map((prod) => (
                   <ProductCard 
                     key={prod.id} 
                     product={prod} 
@@ -1037,7 +1164,7 @@ export default function App() {
                   No announcements published yet. Check back soon!
                 </div>
               ) : (
-                announcements.map((ann) => (
+                announcements.filter(ann => ann && ann.title).map((ann) => (
                   <article key={ann.id} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:border-slate-200 hover:shadow-md transition-all duration-300 space-y-4 text-left">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                       <h2 className="font-display font-bold text-slate-900 text-lg leading-snug">
@@ -1662,6 +1789,7 @@ export default function App() {
                 { id: 'users', label: 'Customer Book (CRM)' },
                 { id: 'share', label: 'Communications & Inbox' },
                 { id: 'assets', label: 'Digital Assets Store' },
+                { id: 'logs', label: 'Security Audit Logs' },
               ].map((sub) => {
                 const isActive = adminSubTab === sub.id;
                 return (
@@ -1739,6 +1867,8 @@ export default function App() {
                   onUpdateFeedbackStatus={handleUpdateFeedbackStatus}
                   onUpdateFeedbackPublic={handleUpdateFeedbackPublic}
                   onDeleteFeedback={handleDeleteFeedback}
+                  onSendBroadcast={handleSendBroadcast}
+                  onGetBroadcasts={handleGetBroadcasts}
                 />
               )}
               {adminSubTab === 'assets' && (
@@ -1746,6 +1876,11 @@ export default function App() {
                   assets={assets}
                   onAddAsset={handleAddAsset}
                   onDeleteAsset={handleDeleteAsset}
+                />
+              )}
+              {adminSubTab === 'logs' && (
+                <AdminSecurityLogs 
+                  token={authState.token!}
                 />
               )}
             </div>
@@ -1776,6 +1911,8 @@ export default function App() {
 
       {/* Navigation Footer */}
       <Footer setActiveTab={setActiveTab} />
+      <FloatingContact />
+      <UpdateNotifier />
 
       {/* Global Interactive Payment Modal Overlay */}
       <AnimatePresence>

@@ -34,7 +34,7 @@ export default function DigitalStore({ assets, onDownload, onInitiatePurchase }:
         // If approved, try to find the asset by purpose
         // Purpose is usually "Digital: Asset Title"
         const assetTitle = data.purpose.replace('Digital: ', '');
-        const asset = assets.find(a => a.title === assetTitle);
+        const asset = (assets || []).find(a => a && a.title === assetTitle);
         
         if (asset) {
           setDownloadLink(asset.fileUrl);

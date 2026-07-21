@@ -1,0 +1,23 @@
+{
+  "name": "ES Digital Computer Service Center",
+  "short_name": "ES Digital",
+  "description": "Professional Computer & Digital Services in Ethiopia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/fluency/192/computer.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://img.icons8.com/fluency/512/computer.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

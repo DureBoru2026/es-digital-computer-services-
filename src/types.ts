@@ -89,5 +89,23 @@ export interface DigitalAsset {
   downloadCount: number;
 }
 
+export interface SecurityLog {
+  id: string;
+  adminUser: string;
+  action: string;
+  details: string;
+  timestamp: string;
+  severity: 'info' | 'warning' | 'critical';
+  ip?: string;
+}
+
+export interface Broadcast {
+  id: string;
+  subject: string;
+  message: string;
+  timestamp: string;
+  recipientCount: number;
+}
+
 export type ActiveTab = 'home' | 'about' | 'services' | 'news' | 'contact' | 'login' | 'admin' | 'digital-store';
-export type AdminSubTab = 'dashboard' | 'products' | 'payments' | 'bookings' | 'history' | 'users' | 'share' | 'reports' | 'assets';
+export type AdminSubTab = 'dashboard' | 'products' | 'payments' | 'bookings' | 'history' | 'users' | 'share' | 'reports' | 'assets' | 'logs';

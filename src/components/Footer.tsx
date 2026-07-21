@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, MapPin, Send, Laptop, Clock, CheckCircle2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, Laptop, Clock, CheckCircle2, Facebook, Instagram, MessageCircle } from 'lucide-react';
 import { ActiveTab } from '../types';
 import { useLanguage } from '../LanguageContext';
 
@@ -12,6 +12,32 @@ export default function Footer({ setActiveTab }: FooterProps) {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [ethiopianTime, setEthiopianTime] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
+  // PWA Install Logic
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+    });
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setShowInstallBtn(false);
+    }
+    setDeferredPrompt(null);
+  };
 
   // Update real-time clock for Ethiopia (EAT is UTC+3)
   useEffect(() => {
@@ -149,19 +175,61 @@ export default function Footer({ setActiveTab }: FooterProps) {
 
         </div>
 
-        <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} ES Digital Computer Service Center (ES Digital CSC). All Rights Reserved. | <a href="/deployment-guide.txt" download="deployment-guide.txt" className="text-sky-400 hover:text-sky-300 underline ml-2">Download Deployment Guide</a></p>
-            <div className="flex space-x-6">
-              <a href="https://facebook.com/ESDigitalCSC" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
-                Facebook
-              </a>
-              <a href="https://t.me/jemalfano" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
-                Telegram
-              </a>
+        <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-slate-500">
+          <div className="text-center md:text-left space-y-2">
+            <p>© {new Date().getFullYear()} ES Digital Computer Service Center (ES Digital CSC). All Rights Reserved.</p>
+            <p className="flex items-center justify-center md:justify-start gap-3">
+              <a href="/deployment-guide.txt" download="deployment-guide.txt" className="text-sky-400 hover:text-sky-300 underline">Download Deployment Guide</a>
+              <span className="text-slate-700">|</span>
+              {showInstallBtn && (
+                <>
+                  <button 
+                    onClick={handleInstallClick}
+                    className="text-amber-400 hover:text-amber-300 font-bold underline flex items-center gap-1"
+                  >
+                    Install ES Digital App
+                  </button>
+                  <span className="text-slate-700">|</span>
+                </>
+              )}
               <span className="text-slate-400 font-medium">{t('footerLocTag')}</span>
-              <span>•</span>
-              <span>{t('footerPayTag')}</span>
+              <span className="text-slate-700">•</span>
+              <span className="text-slate-400 font-medium">{t('footerPayTag')}</span>
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mr-2">Follow Our Community</span>
+            <div className="flex items-center gap-3">
+              <a 
+                href="https://facebook.com/ESDigitalCSC" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-[#0EA5E9] hover:text-white transition-all shadow-sm"
+                title="Facebook"
+              >
+                <Facebook className="w-4 h-4" />
+              </a>
+              <a 
+                href="https://t.me/jemalfano" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-[#0EA5E9] hover:text-white transition-all shadow-sm"
+                title="Telegram"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </a>
+              <a 
+                href="https://instagram.com/esdigital_csc" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-gradient-to-tr from-amber-500 via-red-500 to-purple-600 hover:text-white transition-all shadow-sm"
+                title="Instagram"
+              >
+                <Instagram className="w-4 h-4" />
+              </a>
             </div>
+          </div>
         </div>
       </div>
     </footer>

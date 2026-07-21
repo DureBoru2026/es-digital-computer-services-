@@ -10,6 +10,8 @@ interface AdminShareProps {
   onUpdateFeedbackStatus: (id: string, status: 'read' | 'replied', replyMessage?: string) => Promise<boolean>;
   onUpdateFeedbackPublic: (id: string, isPublic: boolean) => Promise<boolean>;
   onDeleteFeedback: (id: string) => Promise<boolean>;
+  onSendBroadcast: (subject: string, message: string) => Promise<{ success: boolean; count: number }>;
+  onGetBroadcasts: () => Promise<any[]>;
 }
 
 export default function AdminShare({
@@ -19,9 +21,60 @@ export default function AdminShare({
   onDeleteAnnouncement,
   onUpdateFeedbackStatus,
   onUpdateFeedbackPublic,
-  onDeleteFeedback
+  onDeleteFeedback,
+  onSendBroadcast,
+  onGetBroadcasts
 }: AdminShareProps) {
   
+  // Newsletter Broadcast States
+  const [broadcasts, setBroadcasts] = React.useState<any[]>([]);
+  const [broadcastSubject, setBroadcastSubject] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastStatus, setBroadcastStatus] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+
+  React.useEffect(() => {
+    loadBroadcastHistory();
+  }, []);
+
+  const loadBroadcastHistory = async () => {
+    try {
+      const data = await onGetBroadcasts();
+      setBroadcasts(data);
+    } catch (err) {
+      console.error('Failed to load broadcast history');
+    }
+  };
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastSubject.trim() || !broadcastMessage.trim()) return;
+    
+    if (!window.confirm('Send this newsletter to all registered customers? This action cannot be undone.')) return;
+
+    setBroadcastLoading(true);
+    setBroadcastStatus(null);
+
+    try {
+      const result = await onSendBroadcast(broadcastSubject, broadcastMessage);
+      if (result.success) {
+        setBroadcastStatus({ 
+          text: `Broadcast successful! Message sent to ${result.count} customers.`, 
+          type: 'success' 
+        });
+        setBroadcastSubject('');
+        setBroadcastMessage('');
+        loadBroadcastHistory();
+      } else {
+        setBroadcastStatus({ text: 'Broadcast failed. Check server logs.', type: 'error' });
+      }
+    } catch (err) {
+      setBroadcastStatus({ text: 'Broadcast failed due to a network error.', type: 'error' });
+    } finally {
+      setBroadcastLoading(false);
+    }
+  };
+
   // Announcement States
   const [annTitle, setAnnTitle] = useState('');
   const [annContent, setAnnContent] = useState('');
@@ -222,7 +275,7 @@ export default function AdminShare({
             Active Broadcast History ({announcements.length})
           </h3>
           <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-            {announcements.map((ann) => (
+            {announcements.filter(ann => ann && ann.title).map((ann) => (
               <div key={ann.id} className="bg-white rounded-xl border border-slate-100 p-4 flex justify-between items-start space-x-3 hover:border-slate-200 transition-colors shadow-sm">
                 <div className="min-w-0">
                   <h4 className="font-bold text-slate-900 text-xs truncate">{ann.title}</h4>
@@ -277,7 +330,7 @@ export default function AdminShare({
               No incoming customer feedback reports found.
             </div>
           ) : (
-            feedback.map((f) => {
+            feedback.filter(f => f && f.name).map((f) => {
               const isUnread = f.status === 'unread';
               const isReplied = f.status === 'replied';
 
@@ -415,6 +468,138 @@ export default function AdminShare({
                 </div>
               );
             })
+          )}
+        </div>
+      </div>
+
+      {/* Full Width: Newsletter Broadcast */}
+      <div className="lg:col-span-2 space-y-6 pt-8 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-display font-bold text-slate-900 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-indigo-600" />
+              <span>Newsletter Broadcast Center</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Directly engage your community. Send a mass email to all registered customers in your database.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">
+            Official Broadcast Tool
+          </div>
+        </div>
+
+        {broadcastStatus && (
+          <div className={`p-4 rounded-xl border flex items-center space-x-2 text-xs font-semibold animate-in fade-in slide-in-from-top-2 ${
+            broadcastStatus.type === 'success' 
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+              : 'bg-red-50 text-red-800 border-red-200'
+          }`}>
+            {broadcastStatus.type === 'success' ? <Check className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
+            <span>{broadcastStatus.text}</span>
+          </div>
+        )}
+
+        <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl shadow-indigo-100/20 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500 rounded-full blur-[120px] opacity-10 -mr-48 -mt-48 transition-transform group-hover:scale-110 duration-700" />
+          
+          <form onSubmit={handleSendBroadcast} className="relative z-10 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div className="md:col-span-8 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 ml-1">Email Subject Line</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="e.g. Exclusive Update: New Professional Templates Now Available!"
+                    value={broadcastSubject}
+                    onChange={(e) => setBroadcastSubject(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 ml-1">Message Body (Rich Text Support via Plain Text)</label>
+                  <textarea
+                    required
+                    rows={8}
+                    placeholder="Write your professional newsletter message here... Use clear language to drive engagement."
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition-all text-sm font-mono resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-4 flex flex-col justify-end space-y-4">
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+                      <RefreshCw className={`w-5 h-5 ${broadcastLoading ? 'animate-spin' : ''}`} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Broadcast Status</p>
+                      <p className="text-xs font-bold text-white">{broadcastLoading ? 'Processing Queue' : 'Ready to Send'}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-slate-500 leading-relaxed italic">
+                      * Emails will be sent to every verified customer in your database. Ensure your content is compliant with local communication guidelines.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={broadcastLoading || !broadcastSubject.trim() || !broadcastMessage.trim()}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-900/40 disabled:opacity-50 disabled:hover:bg-indigo-600"
+                >
+                  {broadcastLoading ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      Dispatching Emails...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      Send Newsletter Broadcast
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Broadcast History Archives */}
+      <div className="lg:col-span-2 space-y-4 pt-4">
+        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Broadcast Dispatch Archives</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {broadcasts.length === 0 ? (
+            <div className="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              <p className="text-xs text-slate-400 font-bold italic">No previous broadcasts found.</p>
+            </div>
+          ) : (
+            broadcasts.map((bc) => (
+              <div key={bc.id} className="bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-md transition-all group">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Broadcast ID: {bc.id.split('_').pop()}</p>
+                      <p className="text-[10px] text-slate-400 font-bold">{new Date(bc.timestamp).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                    {bc.recipientCount} Recipients
+                  </div>
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">{bc.subject}</h4>
+                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed italic">"{bc.message}"</p>
+              </div>
+            ))
           )}
         </div>
       </div>

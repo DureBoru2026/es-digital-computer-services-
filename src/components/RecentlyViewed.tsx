@@ -46,7 +46,7 @@ export default function RecentlyViewed({ onSelect, lastViewedId }: RecentlyViewe
       </div>
       
       <div className="divide-y divide-slate-50">
-        {items.map((item) => (
+        {items.filter(item => item && item.title).map((item) => (
           <div 
             key={item.id} 
             className="p-4 hover:bg-slate-50 transition-colors group cursor-pointer"

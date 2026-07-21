@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Laptop, ShieldCheck, LogOut, ArrowRight } from 'lucide-react';
+import { Menu, X, Laptop, ShieldCheck, LogOut, ArrowRight, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ActiveTab, AuthState } from '../types';
 import { useLanguage } from '../LanguageContext';
@@ -81,20 +81,29 @@ export default function Header({ activeTab, setActiveTab, authState, handleLogou
           </nav>
 
           {/* User Auth Buttons / Admin Access (with very light green 🍏 background block) */}
-          <div className="hidden md:flex items-center space-x-4 bg-green-50/90 border border-green-100/80 rounded-2xl p-2 px-4 shadow-sm shadow-green-100/30">
-            <div className="flex items-center gap-2 pr-3 border-r border-green-200/60">
+          <div className="hidden md:flex items-center space-x-4 bg-green-50/90 border border-green-100/80 rounded-2xl p-1.5 px-3 shadow-sm shadow-green-100/30">
+            <div className="flex items-center gap-1.5 pr-2 border-r border-green-200/60">
+              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1" />
               <button 
                 onClick={() => setLang('en')} 
-                className={`text-xs font-black transition-all ${lang === 'en' ? 'text-[#0EA5E9]' : 'text-slate-500 hover:text-[#0EA5E9]'}`}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${lang === 'en' ? 'bg-[#0EA5E9] text-white' : 'text-slate-500 hover:text-[#0EA5E9] hover:bg-white'}`}
+                title="English"
               >
                 EN
               </button>
-              <span className="text-green-300 text-xs">|</span>
               <button 
                 onClick={() => setLang('om')} 
-                className={`text-xs font-black transition-all ${lang === 'om' ? 'text-[#0EA5E9]' : 'text-slate-500 hover:text-[#0EA5E9]'}`}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${lang === 'om' ? 'bg-[#0EA5E9] text-white' : 'text-slate-500 hover:text-[#0EA5E9] hover:bg-white'}`}
+                title="Afaan Oromoo"
               >
                 OM
+              </button>
+              <button 
+                onClick={() => setLang('am')} 
+                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${lang === 'am' ? 'bg-[#0EA5E9] text-white' : 'text-slate-500 hover:text-[#0EA5E9] hover:bg-white'}`}
+                title="Amharic"
+              >
+                AM
               </button>
             </div>
 
@@ -160,8 +169,24 @@ export default function Header({ activeTab, setActiveTab, authState, handleLogou
           >
             <div className="px-4 pt-4 pb-6 space-y-1">
               <div className="flex justify-center gap-2 pb-4 mb-2 border-b border-slate-100">
-                <button onClick={() => { setLang('en'); setMobileMenuOpen(false); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold text-center border ${lang === 'en' ? 'bg-sky-50 border-sky-200 text-[#0EA5E9]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>English</button>
-                <button onClick={() => { setLang('om'); setMobileMenuOpen(false); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold text-center border ${lang === 'om' ? 'bg-sky-50 border-sky-200 text-[#0EA5E9]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>Afaan Oromoo</button>
+                <button 
+                  onClick={() => { setLang('en'); setMobileMenuOpen(false); }} 
+                  className={`flex-1 py-2.5 rounded-lg text-xs font-bold text-center border ${lang === 'en' ? 'bg-sky-50 border-sky-200 text-[#0EA5E9]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                >
+                  English
+                </button>
+                <button 
+                  onClick={() => { setLang('om'); setMobileMenuOpen(false); }} 
+                  className={`flex-1 py-2.5 rounded-lg text-xs font-bold text-center border ${lang === 'om' ? 'bg-sky-50 border-sky-200 text-[#0EA5E9]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                >
+                  Oromoo
+                </button>
+                <button 
+                  onClick={() => { setLang('am'); setMobileMenuOpen(false); }} 
+                  className={`flex-1 py-2.5 rounded-lg text-xs font-bold text-center border ${lang === 'am' ? 'bg-sky-50 border-sky-200 text-[#0EA5E9]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                >
+                  Amharic
+                </button>
               </div>
               {navItems.map((item) => (
                 <button

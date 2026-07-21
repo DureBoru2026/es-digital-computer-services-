@@ -144,6 +144,8 @@ export default function SuccessStoriesCarousel({ lang, onNavigateToContact }: Su
   }
 
   const currentStory = testimonials[activeIndex];
+  if (!currentStory) return null;
+
   const avatarChar = currentStory.name ? currentStory.name.trim().charAt(0).toUpperCase() : 'U';
 
   return (
