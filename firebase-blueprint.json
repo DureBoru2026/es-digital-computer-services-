@@ -15,15 +15,113 @@
         "bookingTime": { "type": "string" },
         "notes": { "type": "string" },
         "status": { "type": "string" },
+        "paymentStatus": { "type": "string" },
         "date": { "type": "string" }
       },
       "required": ["id", "customerName", "customerPhone", "serviceId", "serviceTitle", "bookingDate", "bookingTime", "status", "date"]
+    },
+    "product": {
+      "title": "Product",
+      "description": "A product or service offered by the business",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "stock": { "type": "number" },
+        "specifications": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "type", "description", "price", "imageUrl"]
+    },
+    "transaction": {
+      "title": "Transaction",
+      "description": "A payment transaction submitted for verification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "referenceNumber": { "type": "string" },
+        "paymentGateway": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "amount": { "type": "number" },
+        "purpose": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "referenceNumber", "paymentGateway", "customerName", "amount", "purpose", "date", "status"]
+    },
+    "feedback": {
+      "title": "Feedback",
+      "description": "Customer feedback or contact inquiry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "replyMessage": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "message", "date", "status"]
+    },
+    "announcement": {
+      "title": "Announcement",
+      "description": "A news or announcement post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string" },
+        "author": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "date", "author"]
+    },
+    "user": {
+      "title": "User",
+      "description": "Admin or staff user account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "username": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "required": ["id", "email", "username", "passwordHash", "role"]
     }
   },
   "firestore": {
     "/bookings/{bookingId}": {
       "schema": "booking",
       "description": "Collection of service bookings"
+    },
+    "/products/{productId}": {
+      "schema": "product",
+      "description": "Collection of products and services"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "transaction",
+      "description": "Collection of payment transactions"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "feedback",
+      "description": "Collection of customer feedback"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "announcement",
+      "description": "Collection of announcements"
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of user accounts"
     }
   }
 }

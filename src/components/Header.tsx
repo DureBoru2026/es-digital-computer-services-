@@ -19,6 +19,7 @@ export default function Header({ activeTab, setActiveTab, authState, handleLogou
     { id: 'home', label: t('home') },
     { id: 'about', label: t('aboutUs') },
     { id: 'services', label: t('services') },
+    { id: 'digital-store', label: 'Digital Downloads' },
     { id: 'news', label: 'Announcements' },
     { id: 'contact', label: t('contact') },
   ] as const;

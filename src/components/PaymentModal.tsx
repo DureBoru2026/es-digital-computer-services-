@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Info, ShieldCheck, CreditCard, Send, QrCode } from 'lucide-react';
+import { X, Copy, Check, Info, ShieldCheck, CreditCard, Send, QrCode, Languages } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ProductService, Transaction } from '../types';
 import { formatETB } from '../utils';
+import { PAYMENT_CONFIG } from '../config';
 
 interface PaymentModalProps {
   product: ProductService;
@@ -19,6 +20,7 @@ interface PaymentModalProps {
 
 export default function PaymentModal({ product, onClose, onSubmitTransaction }: PaymentModalProps) {
   const [gateway, setGateway] = useState<'telebirr' | 'CBE Birr'>('telebirr');
+  const [lang, setLang] = useState<'en' | 'om'>('en');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -27,10 +29,9 @@ export default function PaymentModal({ product, onClose, onSubmitTransaction }: 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Local Merchant Numbers representing ES Digital CSC
-  const MERCHANT_TELEBIRR = '+251995852194';
-  const MERCHANT_CBE_BIRR = '456012';
-  const CBE_ACCOUNT_NUMBER = '1000192837465';
+  const config = gateway === 'telebirr' ? PAYMENT_CONFIG.telebirr : PAYMENT_CONFIG.cbeBirr;
+  const MERCHANT_TELEBIRR = PAYMENT_CONFIG.telebirr.accountNumber;
+  const MERCHANT_CBE_BIRR = PAYMENT_CONFIG.cbeBirr.accountNumber; // Using accountNumber as reference
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
@@ -174,15 +175,24 @@ export default function PaymentModal({ product, onClose, onSubmitTransaction }: 
 
             {/* Step-by-Step Payment Guide with Dynamic QR */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-150 mt-4 text-xs text-slate-600">
-              <h4 className="font-bold text-slate-800 flex items-center gap-1 mb-2">
-                <QrCode className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>Scan to pay using {gateway}:</span>
-              </h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-bold text-slate-800 flex items-center gap-1">
+                  <QrCode className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>{lang === 'en' ? `Scan to pay using ${gateway}:` : `${gateway} fayyadamuun kaffaltii raawwadhaa:`}</span>
+                </h4>
+                <button 
+                  onClick={() => setLang(lang === 'en' ? 'om' : 'en')}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-[#0EA5E9] hover:bg-sky-50 transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  <span>{lang === 'en' ? 'Afaan Oromoo' : 'English'}</span>
+                </button>
+              </div>
               
               <div className="flex flex-col sm:flex-row gap-4 items-start">
                 <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 shrink-0 mx-auto sm:mx-0">
                   <QRCodeSVG 
-                    value={gateway === 'telebirr' ? `telebirr://pay?merchant=${MERCHANT_TELEBIRR}&amount=${product.price}` : `cbebirr://pay?merchant=${MERCHANT_CBE_BIRR}&amount=${product.price}`}
+                    value={gateway === 'telebirr' ? `telebirr://pay?merchant=${config.accountNumber}&amount=${product.price}` : `cbebirr://pay?account=${config.accountNumber}&amount=${product.price}`}
                     size={100}
                     level="M"
                     includeMargin={false}
@@ -192,53 +202,36 @@ export default function PaymentModal({ product, onClose, onSubmitTransaction }: 
                 </div>
                 
                 <div className="flex-1 w-full">
-                  {gateway === 'telebirr' ? (
-                    <div className="space-y-2">
-                      <p><strong className="text-slate-900 font-extrabold">Step 1:</strong> Open <strong className="text-slate-900 font-extrabold">telebirr App</strong> & <strong className="text-slate-900 font-extrabold">scan QR</strong>.</p>
-                      <p><strong className="text-slate-900 font-extrabold">Step 2:</strong> Or dial <strong className="text-slate-900 font-extrabold">*127#</strong> & select <strong className="text-slate-900 font-extrabold">"Pay with Merchant"</strong>.</p>
-                      <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 font-mono text-[11px] my-1">
-                        <span>Merchant ID: <strong className="text-slate-900 font-extrabold">{MERCHANT_TELEBIRR}</strong></span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(MERCHANT_TELEBIRR, 'telebirr')}
-                          className="text-[#0EA5E9] hover:text-sky-600 flex items-center gap-1 font-sans font-medium"
-                        >
-                          {copiedText === 'telebirr' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedText === 'telebirr' ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                      <p><strong className="text-slate-900 font-extrabold">Step 3:</strong> Complete payment & <strong className="text-slate-900 font-extrabold">copy SMS Reference Number</strong>.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p><strong className="text-slate-900 font-extrabold">Step 1:</strong> Open <strong className="text-slate-900 font-extrabold">CBE Birr App</strong> & <strong className="text-slate-900 font-extrabold">scan QR</strong>.</p>
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1.5 font-mono text-[11px] my-1">
-                        <div className="flex items-center justify-between">
-                          <span>Merchant Code: <strong className="text-slate-900 font-extrabold">{MERCHANT_CBE_BIRR}</strong></span>
+                  <div className="space-y-2">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1.5 font-mono text-[11px] mb-2 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 uppercase text-[9px] font-bold">{gateway === 'telebirr' ? 'Merchant No:' : 'Account No:'}</span>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-slate-900 font-extrabold">{config.accountNumber}</strong>
                           <button
                             type="button"
-                            onClick={() => handleCopy(MERCHANT_CBE_BIRR, 'cbe_merchant')}
+                            onClick={() => handleCopy(config.accountNumber, 'acc')}
                             className="text-[#0EA5E9] hover:text-sky-600 flex items-center gap-0.5 font-sans font-medium"
                           >
-                            {copiedText === 'cbe_merchant' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedText === 'cbe_merchant' ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                          <span>Account Number: <strong className="text-slate-900 font-extrabold">{CBE_ACCOUNT_NUMBER}</strong></span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(CBE_ACCOUNT_NUMBER, 'cbe_acc')}
-                            className="text-[#0EA5E9] hover:text-sky-600 flex items-center gap-0.5 font-sans font-medium"
-                          >
-                            {copiedText === 'cbe_acc' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedText === 'cbe_acc' ? 'Copied' : 'Copy'}</span>
+                            {copiedText === 'acc' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
                           </button>
                         </div>
                       </div>
-                      <p><strong className="text-slate-900 font-extrabold">Step 2:</strong> Complete <strong className="text-slate-900 font-extrabold">{formatETB(product.price)}</strong> transfer.</p>
+                      <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
+                        <span className="text-slate-400 uppercase text-[9px] font-bold">Name:</span>
+                        <strong className="text-slate-900 font-extrabold text-[10px]">{config.accountName}</strong>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="space-y-1.5">
+                      {config.instructions[lang].map((step, idx) => (
+                        <div key={idx} className="flex gap-2 items-start leading-tight">
+                          <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">{idx + 1}</span>
+                          <p>{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

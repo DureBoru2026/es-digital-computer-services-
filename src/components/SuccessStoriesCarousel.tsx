@@ -6,6 +6,7 @@ interface Testimonial {
   id: string;
   name: string;
   message: string;
+  rating?: number;
   date: string;
 }
 
@@ -185,10 +186,10 @@ export default function SuccessStoriesCarousel({ lang, onNavigateToContact }: Su
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="space-y-6"
               >
-                {/* 5-Star Indicator */}
+                {/* Dynamic Star Indicator */}
                 <div className="flex items-center gap-1 text-amber-400">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-amber-400" />
+                    <Star key={i} className={`w-4 h-4 ${i < (currentStory.rating || 5) ? 'fill-amber-400' : 'text-slate-200'}`} />
                   ))}
                 </div>
 

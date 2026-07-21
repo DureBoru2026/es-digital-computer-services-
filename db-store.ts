@@ -4,9 +4,10 @@ import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore'
 export interface User { id: string; email: string; username: string; passwordHash: string; role: 'admin' | 'user'; }
 export interface ProductService { id: string; title: string; category: string; type: string; description: string; price: number; imageUrl: string; stock: number | null; specifications?: string; }
 export interface Announcement { id: string; title: string; content: string; date: string; author: string; }
-export interface Feedback { id: string; name: string; email: string; phone: string; message: string; date: string; status: 'unread' | 'read'; replyMessage?: string; }
+export interface Feedback { id: string; name: string; email: string; phone: string; message: string; date: string; status: 'unread' | 'read' | 'replied'; replyMessage?: string; rating?: number; isPublic?: boolean; }
 export interface Transaction { id: string; referenceNumber: string; paymentGateway: 'telebirr' | 'cbebirr' | 'awash'; customerName: string; customerPhone: string; amount: number; purpose: string; date: string; status: 'pending' | 'approved' | 'rejected'; notes?: string; }
 export interface Booking { id: string; customerName: string; customerPhone: string; customerEmail?: string; serviceId: string; serviceTitle: string; bookingDate: string; bookingTime: string; notes?: string; status: 'pending' | 'confirmed' | 'completed' | 'cancelled'; paymentStatus?: 'unpaid' | 'paid' | 'partial' | 'waived'; date: string; }
+export interface DigitalAsset { id: string; title: string; type: 'video' | 'image' | 'template' | 'pdf' | 'ppt' | 'word'; priceType: 'free' | 'sale'; price: number; fileUrl: string; description: string; date: string; downloadCount: number; }
 
 async function getCollection<T>(name: string): Promise<T[]> {
   const col = collection(firestore, name);
@@ -37,4 +38,6 @@ export const db = {
   saveTransactions: (transactions: Transaction[]) => saveCollection<Transaction>('transactions', transactions),
   getBookings: () => getCollection<Booking>('bookings'),
   saveBookings: (bookings: Booking[]) => saveCollection<Booking>('bookings', bookings),
+  getAssets: () => getCollection<DigitalAsset>('assets'),
+  saveAssets: (assets: DigitalAsset[]) => saveCollection<DigitalAsset>('assets', assets),
 };

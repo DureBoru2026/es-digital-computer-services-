@@ -27,6 +27,8 @@ export interface Feedback {
   date: string;
   status: 'unread' | 'read' | 'replied';
   replyMessage?: string;
+  rating?: number;
+  isPublic?: boolean;
 }
 
 export interface Transaction {
@@ -75,5 +77,17 @@ export interface AuthState {
   } | null;
 }
 
-export type ActiveTab = 'home' | 'about' | 'services' | 'news' | 'contact' | 'login' | 'admin';
-export type AdminSubTab = 'products' | 'payments' | 'bookings' | 'history' | 'users' | 'share';
+export interface DigitalAsset {
+  id: string;
+  title: string;
+  type: 'video' | 'image' | 'template' | 'pdf' | 'ppt' | 'word';
+  priceType: 'free' | 'sale';
+  price: number; // 0 if free
+  fileUrl: string;
+  description: string;
+  date: string;
+  downloadCount: number;
+}
+
+export type ActiveTab = 'home' | 'about' | 'services' | 'news' | 'contact' | 'login' | 'admin' | 'digital-store';
+export type AdminSubTab = 'dashboard' | 'products' | 'payments' | 'bookings' | 'history' | 'users' | 'share' | 'reports' | 'assets';

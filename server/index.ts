@@ -190,6 +190,8 @@ async function startServer() {
   app.get('/api/testimonials', async (req: Request, res: Response) => {
     try {
       const feedback = await db.getFeedback();
+      const publicFeedback = feedback.filter(f => f.isPublic === true);
+      
       const positiveKeywords = [
         'great', 'excellent', 'best', 'good', 'satisfied', 'perfect', 'awesome',
         'love', 'amazing', 'professional', 'happy', 'repair', 'service', 'helpful',
@@ -248,17 +250,29 @@ async function startServer() {
         filtered = defaultTestimonials;
       }
 
-      const testimonials = [...filtered.map(f => ({
-        id: f.id,
-        name: f.name,
-        message: f.message,
-        date: f.date
-      })), ...defaultTestimonials.map(f => ({
-        id: f.id,
-        name: f.name,
-        message: f.message,
-        date: f.date
-      }))];
+      const testimonials = [
+        ...publicFeedback.map(f => ({
+          id: f.id,
+          name: f.name,
+          message: f.message,
+          rating: f.rating || 5,
+          date: f.date
+        })),
+        ...filtered.map(f => ({
+          id: f.id,
+          name: f.name,
+          message: f.message,
+          rating: f.rating || 5,
+          date: f.date
+        })), 
+        ...defaultTestimonials.map(f => ({
+          id: f.id,
+          name: f.name,
+          message: f.message,
+          rating: 5,
+          date: f.date
+        }))
+      ];
 
       const uniqueTestimonials: typeof testimonials = [];
       const seenNames = new Set<string>();
@@ -277,7 +291,7 @@ async function startServer() {
 
   // Submit contact feedback (Public)
   app.post('/api/feedback', async (req: Request, res: Response) => {
-    const { name, email, phone, message } = req.body;
+    const { name, email, phone, message, rating } = req.body;
     if (!name || !email || !message) {
       res.status(400).json({ error: 'Name, email, and message are required' });
       return;
@@ -290,6 +304,8 @@ async function startServer() {
       email,
       phone: phone || '',
       message,
+      rating: rating || 5,
+      isPublic: false,
       date: new Date().toISOString(),
       status: 'unread'
     };
@@ -302,7 +318,7 @@ async function startServer() {
   // Update feedback status/add response reply (Admin Only)
   app.patch('/api/feedback/:id', authenticateAdmin, async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { status, replyMessage } = req.body;
+    const { status, replyMessage, isPublic } = req.body;
     const feedbackList = await db.getFeedback();
     
     const index = feedbackList.findIndex(f => f.id === id);
@@ -313,6 +329,7 @@ async function startServer() {
     
     if (status) feedbackList[index].status = status;
     if (replyMessage !== undefined) feedbackList[index].replyMessage = replyMessage;
+    if (isPublic !== undefined) feedbackList[index].isPublic = isPublic;
     
     await db.saveFeedback(feedbackList);
     res.json(feedbackList[index]);
@@ -391,6 +408,24 @@ async function startServer() {
     
     await db.saveTransactions(transactions);
     res.json(transactions[index]);
+  });
+
+  // Verify transaction by reference number (Public)
+  app.get('/api/transactions/verify/:ref', async (req: Request, res: Response) => {
+    const { ref } = req.params;
+    try {
+      const transactions = await db.getTransactions();
+      const tx = transactions.find(t => t.referenceNumber.toLowerCase() === ref.toLowerCase());
+      
+      if (!tx) {
+        res.status(404).json({ error: 'Transaction not found' });
+        return;
+      }
+      
+      res.json({ status: tx.status, purpose: tx.purpose });
+    } catch (err) {
+      res.status(500).json({ error: 'Verification failed' });
+    }
   });
 
   // --- BOOKINGS ---
@@ -549,6 +584,63 @@ async function startServer() {
     });
     
     res.json(Array.from(customersMap.values()));
+  });
+
+  // Assets Management (Public/Admin)
+  app.get('/api/assets', async (req: Request, res: Response) => {
+    try {
+      const assets = await db.getAssets();
+      res.json(assets);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch assets' });
+    }
+  });
+
+  app.post('/api/assets', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      const assets = await db.getAssets();
+      const newAsset = {
+        ...req.body,
+        id: `asset-${Date.now()}`,
+        date: new Date().toISOString(),
+        downloadCount: 0
+      };
+      assets.push(newAsset);
+      await db.saveAssets(assets);
+      res.status(201).json(newAsset);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to create asset' });
+    }
+  });
+
+  app.delete('/api/assets/:id', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const assets = await db.getAssets();
+      const filtered = assets.filter(a => a.id !== id);
+      await db.saveAssets(filtered);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to delete asset' });
+    }
+  });
+
+  app.post('/api/assets/:id/download', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const assets = await db.getAssets();
+      const index = assets.findIndex(a => a.id === id);
+      if (index === -1) {
+        res.status(404).json({ error: 'Asset not found' });
+        return;
+      }
+      
+      assets[index].downloadCount++;
+      await db.saveAssets(assets);
+      res.json({ success: true, url: assets[index].fileUrl });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to record download' });
+    }
   });
 
   // -------------------------------------------------------------

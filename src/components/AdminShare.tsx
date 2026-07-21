@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, MessageCircle, Calendar, Send, Trash2, ShieldCheck, Check, AlertCircle, RefreshCw, Archive } from 'lucide-react';
+import { Mail, MessageCircle, Calendar, Send, Trash2, ShieldCheck, Check, AlertCircle, RefreshCw, Archive, Star, Eye, EyeOff } from 'lucide-react';
 import { Announcement, Feedback } from '../types';
 
 interface AdminShareProps {
@@ -8,6 +8,7 @@ interface AdminShareProps {
   onAddAnnouncement: (announcement: { title: string; content: string; author: string }) => Promise<boolean>;
   onDeleteAnnouncement: (id: string) => Promise<boolean>;
   onUpdateFeedbackStatus: (id: string, status: 'read' | 'replied', replyMessage?: string) => Promise<boolean>;
+  onUpdateFeedbackPublic: (id: string, isPublic: boolean) => Promise<boolean>;
   onDeleteFeedback: (id: string) => Promise<boolean>;
 }
 
@@ -17,6 +18,7 @@ export default function AdminShare({
   onAddAnnouncement,
   onDeleteAnnouncement,
   onUpdateFeedbackStatus,
+  onUpdateFeedbackPublic,
   onDeleteFeedback
 }: AdminShareProps) {
   
@@ -105,6 +107,21 @@ export default function AdminShare({
   const handleMarkAsRead = async (id: string) => {
     try {
       await onUpdateFeedbackStatus(id, 'read');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleTogglePublic = async (id: string, currentStatus: boolean) => {
+    try {
+      const success = await onUpdateFeedbackPublic(id, !currentStatus);
+      if (success) {
+        setFeedbackMessage({ 
+          text: !currentStatus ? 'Feedback is now visible on home page.' : 'Feedback is now hidden from public.', 
+          type: 'success' 
+        });
+        setTimeout(() => setFeedbackMessage(null), 3000);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -290,6 +307,18 @@ export default function AdminShare({
                             Replied
                           </span>
                         )}
+                        {f.rating && (
+                          <div className="flex items-center gap-0.5 ml-1">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star key={s} className={`w-2.5 h-2.5 ${s <= f.rating! ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                            ))}
+                          </div>
+                        )}
+                        {f.isPublic && (
+                          <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-200 uppercase tracking-wide flex items-center gap-1">
+                            <Eye className="w-2 h-2" /> Public
+                          </span>
+                        )}
                       </div>
                       <span className="block text-[11px] text-slate-400 font-mono mt-0.5">
                         {f.email} {f.phone ? `• ${f.phone}` : ''} • {new Date(f.date).toLocaleString()}
@@ -297,6 +326,16 @@ export default function AdminShare({
                     </div>
 
                     <div className="flex items-center space-x-1.5 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePublic(f.id, !!f.isPublic);
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${f.isPublic ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}
+                        title={f.isPublic ? "Hide from public" : "Make public"}
+                      >
+                        {f.isPublic ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

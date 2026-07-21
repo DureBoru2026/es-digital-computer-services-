@@ -3,14 +3,14 @@ import {
   Laptop, Phone, Mail, MapPin, ArrowRight, ShieldCheck, 
   MessageSquare, BookOpen, AlertCircle, Sparkles, CheckCircle2,
   ListFilter, DollarSign, Calendar, Heart, Shield, HelpCircle, Eye, LogIn,
-  Send, Search, ChevronDown, RotateCcw, X, ZoomIn, Download
+  Send, Search, ChevronDown, RotateCcw, X, ZoomIn, Download, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from './LanguageContext';
 
 import { 
   ProductService, Announcement, Feedback, Transaction, 
-  CustomerRecord, AuthState, ActiveTab, AdminSubTab, Booking
+  CustomerRecord, AuthState, ActiveTab, AdminSubTab, Booking, DigitalAsset
 } from './types';
 
 // Modular Components
@@ -25,8 +25,14 @@ import AdminBookings from './components/AdminBookings';
 import AdminUsers from './components/AdminUsers';
 import AdminShare from './components/AdminShare';
 import AdminHistory from './components/AdminHistory';
+import AdminReport from './components/AdminReport';
+import AdminDashboard from './components/AdminDashboard';
+import AdminAssets from './components/AdminAssets';
+import DigitalStore from './components/DigitalStore';
+import RecentlyViewed from './components/RecentlyViewed';
 import MobileAirtimePurchase from './components/MobileAirtimePurchase';
 import SuccessStoriesCarousel from './components/SuccessStoriesCarousel';
+import FAQ from './components/FAQ';
 
 const sampleWorks = [
   { id: 1, url: 'https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?auto=format&fit=crop&q=80&w=800', title: 'Corporate ID Card' },
@@ -38,7 +44,7 @@ const sampleWorks = [
 export default function App() {
   const { lang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
-  const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>('products');
+  const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>('dashboard');
   
   // Data States
   const [products, setProducts] = useState<ProductService[]>([]);
@@ -47,6 +53,85 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [assets, setAssets] = useState<DigitalAsset[]>([]);
+
+  // DIGITAL ASSETS
+  const loadAssets = async () => {
+    try {
+      const res = await fetch('/api/assets');
+      if (res.ok) {
+        const data = await res.json();
+        setAssets(data);
+      }
+    } catch (err) {
+      console.error('Failed to load assets', err);
+    }
+  };
+
+  const handleAddAsset = async (asset: Omit<DigitalAsset, 'id' | 'date' | 'downloadCount'>) => {
+    try {
+      const res = await fetch('/api/assets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify(asset)
+      });
+      if (res.ok) {
+        await loadAssets();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  const handleDeleteAsset = async (id: string) => {
+    try {
+      const res = await fetch(`/api/assets/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authState.token}`,
+        }
+      });
+      if (res.ok) {
+        await loadAssets();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  const handleDownloadAsset = async (id: string) => {
+    try {
+      const res = await fetch(`/api/assets/${id}/download`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        window.open(data.url, '_blank');
+        await loadAssets();
+      }
+    } catch (err) {
+      console.error('Download failed', err);
+    }
+  };
+
+  const handleInitiateAssetPurchase = (asset: DigitalAsset) => {
+    const virtualProduct: ProductService = {
+      id: asset.id,
+      title: `Digital: ${asset.title}`,
+      description: asset.description,
+      price: asset.price,
+      imageUrl: '',
+      category: 'sales',
+      type: 'digital',
+      stock: null
+    };
+    setSelectedProduct(virtualProduct);
+  };
 
   // Auth State
   const [authState, setAuthState] = useState<AuthState>({
@@ -66,12 +151,36 @@ export default function App() {
   const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<{url: string, title: string} | null>(null);
+  const [lastViewedId, setLastViewedId] = useState<string>('');
+
+  const handleProductSelection = (product: ProductService) => {
+    setSelectedProduct(product);
+    setLastViewedId(product.id);
+    
+    // Update session storage
+    const stored = sessionStorage.getItem('recently_viewed');
+    let items: ProductService[] = stored ? JSON.parse(stored) : [];
+    
+    // Remove if already exists to move to top
+    items = items.filter(i => i.id !== product.id);
+    
+    // Add to top
+    items.unshift(product);
+    
+    // Keep only 5
+    if (items.length > 5) {
+      items = items.slice(0, 5);
+    }
+    
+    sessionStorage.setItem('recently_viewed', JSON.stringify(items));
+  };
 
   // Contact Form State
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactMessage, setContactMessage] = useState('');
+  const [contactRating, setContactRating] = useState(5);
   const [contactSuccess, setContactSuccess] = useState('');
   const [contactError, setContactError] = useState('');
 
@@ -116,6 +225,7 @@ export default function App() {
     }
 
     loadPublicData();
+    loadAssets();
   }, []);
 
   // Whenever isAuthenticated changes, load admin data if true
@@ -272,6 +382,7 @@ export default function App() {
           email: contactEmail,
           phone: contactPhone,
           message: contactMessage,
+          rating: contactRating,
         })
       });
 
@@ -283,6 +394,7 @@ export default function App() {
         setContactEmail('');
         setContactPhone('');
         setContactMessage('');
+        setContactRating(5);
         
         // Reload admin data if logged in
         if (authState.isAuthenticated && authState.token) {
@@ -546,6 +658,26 @@ export default function App() {
     }
   };
 
+  const handleUpdateFeedbackPublic = async (id: string, isPublic: boolean) => {
+    try {
+      const res = await fetch(`/api/feedback/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify({ isPublic })
+      });
+      if (res.ok) {
+        await loadAdminData(authState.token!);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      return false;
+    }
+  };
+
   const handleDeleteFeedback = async (id: string) => {
     try {
       const res = await fetch(`/api/feedback/${id}`, {
@@ -563,6 +695,9 @@ export default function App() {
       return false;
     }
   };
+
+  // DIGITAL ASSETS
+  // (Moved up)
 
   // TRANSACTIONS / PAYMENTS RECONCILIATION
   const handleUpdateTransactionStatus = async (id: string, status: 'approved' | 'rejected', notes?: string) => {
@@ -729,7 +864,7 @@ export default function App() {
                   <ProductCard 
                     key={prod.id} 
                     product={prod} 
-                    onSelect={(p) => setSelectedProduct(p)} 
+                    onSelect={(p) => handleProductSelection(p)} 
                   />
                 ))}
               </div>
@@ -740,6 +875,9 @@ export default function App() {
               lang={lang} 
               onNavigateToContact={() => setActiveTab('contact')} 
             />
+
+            {/* Frequently Asked Questions */}
+            <FAQ />
 
             {/* Local Trust banner */}
             <section id="location-trust" className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-3xl p-8 sm:p-10 border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-8">
@@ -870,6 +1008,15 @@ export default function App() {
         );
 
       // 3. ANNOUNCEMENTS VIEW
+      case 'digital-store':
+        return (
+          <DigitalStore 
+            assets={assets}
+            onDownload={handleDownloadAsset}
+            onInitiatePurchase={handleInitiateAssetPurchase}
+          />
+        );
+
       case 'news':
         return (
           <div id="news-view" className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
@@ -1046,27 +1193,28 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-10">
-                
-                {/* Category 1: Computer & Electronics Maintenance */}
-                {maintenanceProducts.length > 0 && (
-                  <div id="cat-maintenance" className="space-y-6">
-                    <div className="border-b border-slate-100 pb-3">
-                      <h2 className="font-display font-bold text-slate-900 text-lg sm:text-xl flex items-center gap-2.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#0EA5E9]" />
-                        <span>1. Computer & Electronics Maintenance</span>
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Precision hardware diagnoses, driver updates, dust cleaning, motherboard diagnostics, and screen restoration.
-                      </p>
+              <div className="flex flex-col lg:flex-row gap-8">
+                <div className="flex-1 space-y-10">
+                  
+                  {/* Category 1: Computer & Electronics Maintenance */}
+                  {maintenanceProducts.length > 0 && (
+                    <div id="cat-maintenance" className="space-y-6">
+                      <div className="border-b border-slate-100 pb-3">
+                        <h2 className="font-display font-bold text-slate-900 text-lg sm:text-xl flex items-center gap-2.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#0EA5E9]" />
+                          <span>1. Computer & Electronics Maintenance</span>
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Precision hardware diagnoses, driver updates, dust cleaning, motherboard diagnostics, and screen restoration.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {maintenanceProducts.map((prod) => (
+                          <ProductCard key={prod.id} product={prod} onSelect={(p) => handleProductSelection(p)} />
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {maintenanceProducts.map((prod) => (
-                        <ProductCard key={prod.id} product={prod} onSelect={(p) => setSelectedProduct(p)} />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Category 2: Print & Publish */}
                 {printProducts.length > 0 && (
@@ -1080,9 +1228,9 @@ export default function App() {
                         Corporate booklet layouts, ID card design formatting, color photocopying, and custom layouts by our designers.
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {printProducts.map((prod) => (
-                        <ProductCard key={prod.id} product={prod} onSelect={(p) => setSelectedProduct(p)} />
+                        <ProductCard key={prod.id} product={prod} onSelect={(p) => handleProductSelection(p)} />
                       ))}
                     </div>
                     
@@ -1129,9 +1277,9 @@ export default function App() {
                         Short-term, fully practical workshops. Learn Windows systems, Microsoft Office Suite, and internet safety.
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {trainingProducts.map((prod) => (
-                        <ProductCard key={prod.id} product={prod} onSelect={(p) => setSelectedProduct(p)} />
+                        <ProductCard key={prod.id} product={prod} onSelect={(p) => handleProductSelection(p)} />
                       ))}
                     </div>
                   </div>
@@ -1156,15 +1304,42 @@ export default function App() {
                         Curated physical hardware, activated mobile airtime vouchers, ATS-friendly digital resume codes, and signature handcrafted full-grain leather accessories.
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {salesProducts.map((prod) => (
-                        <ProductCard key={prod.id} product={prod} onSelect={(p) => setSelectedProduct(p)} />
+                        <ProductCard key={prod.id} product={prod} onSelect={(p) => handleProductSelection(p)} />
                       ))}
                     </div>
                   </div>
                 )}
-
               </div>
+
+              {/* Recently Viewed Sidebar */}
+              <div className="w-full lg:w-72 shrink-0">
+                <div className="sticky top-24 space-y-6">
+                  <RecentlyViewed 
+                    onSelect={(p) => handleProductSelection(p)} 
+                    lastViewedId={lastViewedId} 
+                  />
+                  
+                  {/* Help Card */}
+                  <div className="bg-gradient-to-br from-[#0EA5E9] to-sky-600 rounded-3xl p-6 text-white shadow-lg shadow-sky-200/50">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4">
+                      <HelpCircle className="w-6 h-6" />
+                    </div>
+                    <h4 className="font-bold text-sm mb-2">Need a Custom Quote?</h4>
+                    <p className="text-sky-50 text-[11px] leading-relaxed mb-4">
+                      Can't find exactly what you need? We specialize in custom IT solutions and bulk printing services.
+                    </p>
+                    <button 
+                      onClick={() => setActiveTab('contact')}
+                      className="w-full py-2 bg-white text-[#0EA5E9] rounded-xl text-[11px] font-bold hover:bg-sky-50 transition-colors"
+                    >
+                      Contact Experts
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
             )}
           </div>
         );
@@ -1247,6 +1422,29 @@ export default function App() {
                       onChange={(e) => setContactEmail(e.target.value)}
                       className="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-[#0EA5E9] bg-slate-50"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Experience Rating
+                    </label>
+                    <div className="flex items-center gap-2 mb-4">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setContactRating(star)}
+                          className="focus:outline-none transition-transform active:scale-110"
+                        >
+                          <Star 
+                            className={`w-6 h-6 ${star <= contactRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} 
+                          />
+                        </button>
+                      ))}
+                      <span className="ml-2 text-xs font-bold text-slate-400">
+                        {contactRating} / 5
+                      </span>
+                    </div>
                   </div>
 
                   <div>
@@ -1455,12 +1653,15 @@ export default function App() {
             {/* Sub-tab Navigation Panel */}
             <div className="flex flex-wrap border-b border-slate-100 gap-1.5">
               {[
+                { id: 'dashboard', label: 'Command Center' },
                 { id: 'products', label: 'Catalog CRUD' },
                 { id: 'payments', label: 'Payment Ledger Verification' },
                 { id: 'bookings', label: 'Service Bookings Desk' },
                 { id: 'history', label: 'Transaction History' },
+                { id: 'reports', label: 'Reports & Analytics' },
                 { id: 'users', label: 'Customer Book (CRM)' },
                 { id: 'share', label: 'Communications & Inbox' },
+                { id: 'assets', label: 'Digital Assets Store' },
               ].map((sub) => {
                 const isActive = adminSubTab === sub.id;
                 return (
@@ -1481,6 +1682,14 @@ export default function App() {
 
             {/* Render Sub-tabs dynamically */}
             <div className="pt-2 animate-in fade-in duration-200">
+              {adminSubTab === 'dashboard' && (
+                <AdminDashboard 
+                  bookings={bookings}
+                  transactions={transactions}
+                  feedback={feedback}
+                  onSetTab={(tab) => setAdminSubTab(tab)}
+                />
+              )}
               {adminSubTab === 'products' && (
                 <AdminProducts 
                   products={products}
@@ -1510,6 +1719,11 @@ export default function App() {
                   onRefresh={() => loadAdminData(authState.token!)}
                 />
               )}
+              {adminSubTab === 'reports' && (
+                <AdminReport 
+                  transactions={transactions}
+                />
+              )}
               {adminSubTab === 'users' && (
                 <AdminUsers 
                   customers={customers}
@@ -1523,7 +1737,15 @@ export default function App() {
                   onAddAnnouncement={handleAddAnnouncement}
                   onDeleteAnnouncement={handleDeleteAnnouncement}
                   onUpdateFeedbackStatus={handleUpdateFeedbackStatus}
+                  onUpdateFeedbackPublic={handleUpdateFeedbackPublic}
                   onDeleteFeedback={handleDeleteFeedback}
+                />
+              )}
+              {adminSubTab === 'assets' && (
+                <AdminAssets 
+                  assets={assets}
+                  onAddAsset={handleAddAsset}
+                  onDeleteAsset={handleDeleteAsset}
                 />
               )}
             </div>

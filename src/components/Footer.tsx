@@ -151,11 +151,17 @@ export default function Footer({ setActiveTab }: FooterProps) {
 
         <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
           <p>© {new Date().getFullYear()} ES Digital Computer Service Center (ES Digital CSC). All Rights Reserved. | <a href="/deployment-guide.txt" download="deployment-guide.txt" className="text-sky-400 hover:text-sky-300 underline ml-2">Download Deployment Guide</a></p>
-          <div className="flex space-x-6">
-            <span className="text-slate-400 font-medium">{t('footerLocTag')}</span>
-            <span>•</span>
-            <span>{t('footerPayTag')}</span>
-          </div>
+            <div className="flex space-x-6">
+              <a href="https://facebook.com/ESDigitalCSC" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
+                Facebook
+              </a>
+              <a href="https://t.me/jemalfano" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
+                Telegram
+              </a>
+              <span className="text-slate-400 font-medium">{t('footerLocTag')}</span>
+              <span>•</span>
+              <span>{t('footerPayTag')}</span>
+            </div>
         </div>
       </div>
     </footer>
