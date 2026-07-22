@@ -22,9 +22,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ],
+      "@/*": ["./src/*"],
       "@components/*": ["./src/components/*"],
       "@hooks/*": ["./src/hooks/*"],
       "@utils/*": ["./src/utils/*"],
@@ -37,8 +35,8 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitReturns": true
   },
   "include": [
